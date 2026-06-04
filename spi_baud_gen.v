@@ -60,7 +60,7 @@ always @(posedge PCLK or negedge PRESETn) begin
                 if (sck_state == 1'b0)
                     sck_rise_pulse <= 1'b1;
                 else
-                    sck_fall_pulse <= 1'b0;
+                    sck_fall_pulse <= 1'b1;
             end else begin
                 sck_cnt <= sck_cnt + 1'b1;
             end
