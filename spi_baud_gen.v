@@ -8,7 +8,8 @@ module spi_baud_gen (
     input  wire [7:0]  reg_SPIBR,
 
     // FSM Interface
-    input  wire        fsm_active,
+    input  wire        baud_en,
+    input  wire        sck_en,
     // FSM clock pulse
     output reg         sck_rise_pulse,
     output reg         sck_fall_pulse,
@@ -51,7 +52,7 @@ always @(posedge PCLK or negedge PRESETn) begin
         sck_rise_pulse  <= 1'b0;
         sck_fall_pulse  <= 1'b0;
         // Divisor works when fsm is active
-        if (fsm_active) begin
+        if (baud_en) begin
             if (sck_cnt >= (Half_Divisor - 1'b1)) begin
                 sck_cnt     <= 12'd0;
                 sck_state   <= !sck_state;
@@ -75,7 +76,7 @@ always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         sck_out <= 1'b0;
     end else begin
-        if (fsm_active) begin
+        if (baud_en && sck_en) begin
             if (sck_rise_pulse)
                 sck_out <= 1'b1;
             else if(sck_fall_pulse)
