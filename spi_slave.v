@@ -27,7 +27,6 @@ module spi_slave (
     output reg         MISO_out
 );
 
-
 // Generate Sample and Shift pulse
 wire sample_pulse, shift_pulse;
 assign sample_pulse = (CPOL ^ CPHA) ? slave_sck_fall : slave_sck_rise;

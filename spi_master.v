@@ -33,7 +33,6 @@ module spi_master (
     output reg         SSN
 );
 
-
 // Generate Sample and Shift pulse
 wire sample_pulse, shift_pulse;
 assign sample_pulse = (CPOL ^ CPHA) ? sck_fall_pulse : sck_rise_pulse;
