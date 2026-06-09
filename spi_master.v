@@ -49,12 +49,24 @@ reg [3:0] bit_cnt;
 reg [7:0] rx_shifter, tx_shifter;
 reg       tx_pending;
 always @(posedge PCLK or negedge PRESETn) begin
-    if (!PRESETn || !master_en) begin
+    if (!PRESETn) begin
         baud_en      <= 1'b0;
         sck_en       <= 1'b0;
         SPIF_set     <= 1'b0;
         SPTEF_set    <= 1'b1;
         RX_data      <= 8'h00;
+        bit_cnt      <= 4'd0;
+        rx_shifter   <= 8'h00;
+        tx_shifter   <= 8'h00;
+        tx_pending   <= 1'b0;
+        MOSI_out     <= 1'b0;
+        SSN          <= 1'b1;
+        state_master <= MSTR_IDLE;
+    end else if (!master_en) begin
+        baud_en      <= 1'b0;
+        sck_en       <= 1'b0;
+        SPIF_set     <= 1'b0;
+        SPTEF_set    <= 1'b0;
         bit_cnt      <= 4'd0;
         rx_shifter   <= 8'h00;
         tx_shifter   <= 8'h00;
