@@ -4,7 +4,6 @@ module spi_baud_gen (
     input  wire        PRESETn,
 
     // Signals and Regs
-    input  wire        MSTR,
     input  wire        CPOL,
     input  wire [7:0]  reg_SPIBR,
 
@@ -51,8 +50,8 @@ always @(posedge PCLK or negedge PRESETn) begin
     end else begin
         sck_rise_pulse  <= 1'b0;
         sck_fall_pulse  <= 1'b0;
-        // Divisor works only in Master mode and when fsm is active
-        if (MSTR && fsm_active) begin
+        // Divisor works when fsm is active
+        if (fsm_active) begin
             if (sck_cnt >= (Half_Divisor - 1'b1)) begin
                 sck_cnt     <= 12'd0;
                 sck_state   <= !sck_state;
@@ -76,19 +75,14 @@ always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         sck_out <= 1'b0;
     end else begin
-        if (MSTR) begin
-            if (fsm_active) begin
-                if (sck_rise_pulse)
-                    sck_out <= 1'b1;
-                else if(sck_fall_pulse)
-                    sck_out <= 1'b0;
-            end else begin
-                // IDLE
-                sck_out <= CPOL;
-            end
+        if (fsm_active) begin
+            if (sck_rise_pulse)
+                sck_out <= 1'b1;
+            else if(sck_fall_pulse)
+                sck_out <= 1'b0;
         end else begin
-            // Slave, sck on top is chosen to be 1'bz.
-            sck_out <= 1'b0;
+            // IDLE
+            sck_out <= CPOL;
         end
     end
 end

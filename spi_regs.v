@@ -51,7 +51,7 @@ always @(posedge PCLK or negedge PRESETn) begin
                 4'd0: reg_SPICR1    <= PWDATA;
                 4'd1: reg_SPICR2    <= PWDATA;
                 4'd2: reg_SPIBR     <= PWDATA;
-                4'd5: begin     // SPISR can be written only when SPTEF is 1.
+                4'd5: begin     // SPIDR can be written only when SPTEF is 1.
                     if (reg_SPISR[5]) begin
                         reg_SPIDR_TX        <= PWDATA;
                         reg_SPIDR_TX_valid  <= 1'b1;
