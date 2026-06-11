@@ -10,6 +10,8 @@ module spi_top (
     input  wire [7:0]  PWDATA,
     output reg  [7:0]  PRDATA,
     output wire        PREADY,
+    // Interrupt Signal
+    output wire        spi_irq,
 
     // Pad Interface
     //SCK
@@ -47,7 +49,6 @@ wire        MODF_set;
 // MSTR/SLV Ctrl
 wire        master_en;
 wire        slave_en;
-wire        mode_fault;
 
 // Master
 // Clock
@@ -65,6 +66,7 @@ wire        master_SSN_out;
 
 // Slave
 // Clock
+wire        ssn_sync;
 wire        slave_sck_rise;
 wire        slave_sck_fall;
 // Signals
@@ -119,7 +121,120 @@ assign SPTEF_set = MSTR ? master_SPTEF_set  : slave_SPTEF_set;
 assign RX_data   = MSTR ? master_RX_data    : slave_RX_data;
 
 // Instantiations
+spi_regs u_spi_regs (
+    .PCLK           (PCLK),
+    .PRESETn        (PRESETn),
+    .PADDR          (PADDR),
+    .PSEL           (PSEL),
+    .PENABLE        (PENABLE),
+    .PWRITE         (PWRITE),
+    .PWDATA         (PWDATA),
+    .PRDATA         (PRDATA),
+    .PREADY         (PREADY),
 
+    .reg_SPICR1     (reg_SPICR1),
+    .reg_SPICR2     (reg_SPICR2),
+    .reg_SPIBR      (reg_SPIBR),
+
+    .SPIF_set       (SPIF_set),
+    .SPTEF_set      (SPTEF_set),
+    .MODF_set       (MODF_set),
+    .RX_data        (RX_data),
+    .reg_SPIDR_TX   (reg_SPIDR_TX),
+    .SPIDR_TX_valid (SPIDR_TX_valid),
+    .spi_irq        (spi_irq)
+);
+
+spi_fsm_top u_spi_fsm_top (
+    .PCLK       (PCLK),
+    .PRESETn    (PRESETn),
+
+    .reg_SPICR1 (reg_SPICR1),
+    .reg_SPICR2 (reg_SPICR2),
+    .reg_SPIBR  (reg_SPIBR),
+
+    .master_en  (master_en),
+    .slave_en   (slave_en)
+);
+
+spi_baud_gen u_spi_baud_gen (
+    .PCLK           (PCLK),
+    .PRESETn        (PRESETn),
+
+    .CPOL           (CPOL),
+    .reg_SPIBR      (reg_SPIBR),
+
+    .baud_en        (baud_en),
+    .sck_en         (sck_en),
+
+    .sck_rise_pulse (sck_rise_pulse),
+    .sck_fall_pulse (sck_fall_pulse),
+
+    .sck_out        (sck_out)
+);
+
+spi_master u_spi_master (
+    .PCLK               (PCLK),
+    .PRESETn            (PRESETn),
+
+    .master_en          (master_en),
+
+    .sck_rise_pulse     (sck_rise_pulse),
+    .sck_fall_pulse     (sck_fall_pulse),
+
+    .SPISWAI            (SPISWAI),
+    .CPOL               (CPOL),
+    .CPHA               (CPHA),
+    .LSBFE              (LSBFE),
+    .SPIDR_TX_valid     (SPIDR_TX_valid),
+    .SPIDR_TX_buffer    (reg_SPIDR_TX),
+
+    .baud_en            (baud_en),
+    .sck_en             (sck_en),
+
+    .SPIF_set           (master_SPIF_set),
+    .SPTEF_set          (master_SPTEF_set),
+    .RX_data            (master_RX_data),
+
+    .MISO_in            (master_MIMO_in),   // Signal after rerouting
+    .MOSI_out           (master_MOSI_out),
+    .SSN                (master_SSN_out)
+);
+
+spi_cdc_sync u_spi_cdc_sync (
+    .PCLK           (PCLK),
+    .PRESETn        (PRESETn),
+
+    .ext_sck        (sck_pad_i),
+    .ext_ssn        (ssn_pad_i),
+
+    .ssn_sync       (ssn_sync),
+    .slave_sck_rise (slave_sck_rise),
+    .slave_sck_fall (slave_sck_fall)
+);
+
+spi_slave u_spi_slave (
+    .PCLK               (PCLK),
+    .PRESETn            (PRESETn),
+
+    .slave_en           (slave_en),
+
+    .ssn_sync           (ssn_sync),
+    .slave_sck_rise     (slave_sck_rise),
+    .slave_sck_fall     (slave_sck_fall),
+
+    .CPOL               (CPOL),
+    .CPHA               (CPHA),
+    .LSBFE              (LSBFE),
+    .SPIDR_TX_buffer    (reg_SPIDR_TX),
+
+    .SPIF_set           (slave_SPIF_set),
+    .SPTEF_set          (slave_SPTEF_set),
+    .RX_data            (slave_RX_data),
+
+    .MOSI_in            (slave_SISO_in),    // // Signal after rerouting
+    .MISO_out           (slave_MISO_out)
+);
 
 
 endmodule //spi_top

@@ -42,6 +42,11 @@ wire MODF    = reg_SPISR[4];
 
 assign spi_irq = SPE & ((SPIE & (SPIF | MODF)) | (SPTIE & SPTEF));
 
+// To clear flags, read SPISR first.
+reg     SPIF_read;
+reg     SPTEF_read;
+reg     MODF_read;
+
 // APB Signals
 wire    APB_access   = PSEL && PENABLE;
 wire    APB_write_en = APB_access && PWRITE;
@@ -65,7 +70,7 @@ always @(posedge PCLK or negedge PRESETn) begin
                 4'd1: reg_SPICR2    <= PWDATA;
                 4'd2: reg_SPIBR     <= PWDATA;
                 4'd5: begin     // SPIDR can be written only when SPTEF is 1.
-                    if (SPTEF) begin
+                    if (SPTEF & SPTEF_read) begin
                         reg_SPIDR_TX    <= PWDATA;
                         SPIDR_TX_valid  <= 1'b1;
                     end
@@ -106,10 +111,6 @@ always @( *) begin
 end
 
 // SPISR Clear Flag PRE
-// To clear these flags, read SPISR first.
-reg     SPIF_read;
-reg     SPTEF_read;
-reg     MODF_read;
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         SPIF_read   <= 1'b0;

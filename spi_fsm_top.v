@@ -8,9 +8,6 @@ module spi_fsm_top (
     input  wire [7:0]  reg_SPICR2,
     input  wire [7:0]  reg_SPIBR,
 
-    // Signal
-    input  wire        ssn,
-
     // Output
     output reg         master_en,
     output reg         slave_en
