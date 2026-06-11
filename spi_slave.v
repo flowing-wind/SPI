@@ -109,8 +109,6 @@ always @(posedge PCLK or negedge PRESETn) begin
                 bit_cnt <= bit_cnt + 1'b1;
             end
         end
-
-
     end
 end
 

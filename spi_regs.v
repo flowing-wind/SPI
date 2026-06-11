@@ -44,7 +44,7 @@ always @(posedge PCLK or negedge PRESETn) begin
         reg_SPIDR_TX        <= 8'h00;
         reg_SPIDR_TX_valid  <= 1'b0;
     end else begin
-        reg_SPIDR_TX_valid <= 1'b0;     // 0 by default
+        reg_SPIDR_TX_valid  <= 1'b0;     // 0 by default
 
         if (APB_write_en) begin
             case (PADDR)
@@ -60,6 +60,10 @@ always @(posedge PCLK or negedge PRESETn) begin
                 default: ;
             endcase
         end
+
+        if (fsm_MODF_set) begin
+            reg_SPICR1[4]   <= 1'b0;  // change to slave
+        end 
     end
 end
 
@@ -113,7 +117,7 @@ always @(posedge PCLK or negedge PRESETn) begin
                 SPIF_read   <= 1'b0;
             if (APB_write_en && (PADDR == 4'd5))
                 SPTEF_read  <= 1'b0;
-            if (APB_read_en && (PADDR == 4'd0))
+            if (APB_write_en && (PADDR == 4'd0))
                 MODF_read   <= 1'b0;
         end
     end
@@ -125,21 +129,21 @@ always @(posedge PCLK or negedge PRESETn) begin
     end else begin
         // SPIF
         if (fsm_SPIF_set) begin
-            reg_SPISR[7] <= 1'b1;
-        end else if (APB_read_en && (PADDR == 3'd5) && SPIF_read) begin
-            reg_SPISR[7] <= 1'b0;
+            reg_SPISR[7]    <= 1'b1;
+        end else if (APB_read_en && (PADDR == 4'd5) && SPIF_read) begin
+            reg_SPISR[7]    <= 1'b0;
         end
         // SPTEF
         if (fsm_SPTEF_set) begin
-            reg_SPISR[5] <= 1'b1;
+            reg_SPISR[5]    <= 1'b1;
         end else if (APB_write_en && (PADDR == 4'd5) && SPTEF_read) begin
-            reg_SPISR[5] <= 1'b0;
+            reg_SPISR[5]    <= 1'b0;
         end
         // MODF
         if (fsm_MODF_set) begin
-            reg_SPISR[4] <= 1'b1;
-        end else if (APB_write_en && (PADDR == 3'd0) && MODF_read) begin
-            reg_SPISR[4] <= 1'b0;
+            reg_SPISR[4]    <= 1'b1;
+        end else if (APB_write_en && (PADDR == 4'd0) && MODF_read) begin
+            reg_SPISR[4]    <= 1'b0;
         end
     end
 end
