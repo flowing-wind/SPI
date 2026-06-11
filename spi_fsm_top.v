@@ -13,8 +13,7 @@ module spi_fsm_top (
 
     // Output
     output reg         master_en,
-    output reg         slave_en,
-    output wire        mode_fault
+    output reg         slave_en
 );
 
 // Detect changes in some signals
@@ -34,8 +33,6 @@ end
 wire cfg_changed = (reg_SPICR1[4:0] != reg_SPICR1_r[4:0]) || 
                    (reg_SPICR2[4] != reg_SPICR2_r[4]) || ((reg_SPICR2[3] != reg_SPICR2_r[3]) && (reg_SPICR2[0] == 1)) || (reg_SPICR2[0] != reg_SPICR2_r[0]) ||
                    (reg_SPIBR [6:4] != reg_SPIBR_r [6:4]) || (reg_SPIBR[2:0] != reg_SPIBR_r[2:0]);
-
-assign mode_fault = reg_SPICR2[4] && !reg_SPICR1[1] && !ssn;
 
 // Top FSM
 reg [1:0] state_top;
@@ -62,7 +59,7 @@ always @(posedge PCLK or negedge PRESETn) begin
             MSTR_RUN: begin
                 master_en <= 1'b1;
                 slave_en  <= 1'b0;
-                if (cfg_changed || mode_fault) begin
+                if (cfg_changed) begin
                     state_top <= INIT_IDLE;
                 end
             end

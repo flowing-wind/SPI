@@ -11,7 +11,7 @@ module spi_master (
     input  wire        sck_fall_pulse,
 
     // Config Signals
-    input  wire        WAIT,
+    input  wire        SPISWAI,
     input  wire        CPOL,
     input  wire        CPHA,
     input  wire        LSBFE,
@@ -73,7 +73,7 @@ always @(posedge PCLK or negedge PRESETn) begin
         MOSI_out     <= 1'b0;
         SSN          <= 1'b1;
         state_master <= MSTR_IDLE;
-    end else if (WAIT) begin
+    end else if (SPISWAI) begin
         baud_en      <= baud_en;
         sck_en       <= sck_en;
         SPIF_set     <= SPIF_set;

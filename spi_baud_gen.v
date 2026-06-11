@@ -7,10 +7,11 @@ module spi_baud_gen (
     input  wire        CPOL,
     input  wire [7:0]  reg_SPIBR,
 
-    // FSM Interface
+    // Master Interface
     input  wire        baud_en,
     input  wire        sck_en,
-    // FSM clock pulse
+    
+    // Clock Pulse
     output reg         sck_rise_pulse,
     output reg         sck_fall_pulse,
 

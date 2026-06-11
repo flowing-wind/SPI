@@ -16,18 +16,31 @@ module spi_regs (
     output reg  [7:0]  reg_SPICR2,
     output reg  [7:0]  reg_SPIBR,
 
-    // FSM Interface
-    input  wire        fsm_SPIF_set,
-    input  wire        fsm_SPTEF_set,
-    input  wire        fsm_MODF_set,
-    input  wire [7:0]  fsm_RX_data,
+    // MSTR/SLV Interface
+    input  wire        SPIF_set,
+    input  wire        SPTEF_set,
+    input  wire        MODF_set,
+    input  wire [7:0]  RX_data,
     output reg  [7:0]  reg_SPIDR_TX,
-    output reg         reg_SPIDR_TX_valid
+    output reg         SPIDR_TX_valid,
+
+    // Interrupt Request
+    output wire        spi_irq
 );
 
 // Regs
 reg  [7:0] reg_SPISR;
 reg  [7:0] reg_SPIDR_RX;
+// Reg Configurations
+wire SPIE    = reg_SPICR1[7];
+wire SPE     = reg_SPICR1[6];
+wire SPTIE   = reg_SPICR1[5];
+
+wire SPIF    = reg_SPISR[7];
+wire SPTEF   = reg_SPISR[5];
+wire MODF    = reg_SPISR[4];
+
+assign spi_irq = SPE & ((SPIE & (SPIF | MODF)) | (SPTIE & SPTEF));
 
 // APB Signals
 wire    APB_access   = PSEL && PENABLE;
@@ -38,13 +51,13 @@ assign  PREADY       = 1'b1;
 // APB Write Data
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
-        reg_SPICR1          <= 8'h04;
-        reg_SPICR2          <= 8'h00;
-        reg_SPIBR           <= 8'h30;   // 8 div by default
-        reg_SPIDR_TX        <= 8'h00;
-        reg_SPIDR_TX_valid  <= 1'b0;
+        reg_SPICR1      <= 8'h04;
+        reg_SPICR2      <= 8'h00;
+        reg_SPIBR       <= 8'h30;   // 8 div by default
+        reg_SPIDR_TX    <= 8'h00;
+        SPIDR_TX_valid  <= 1'b0;
     end else begin
-        reg_SPIDR_TX_valid  <= 1'b0;     // 0 by default
+        SPIDR_TX_valid      <= 1'b0;     // 0 by default
 
         if (APB_write_en) begin
             case (PADDR)
@@ -52,16 +65,16 @@ always @(posedge PCLK or negedge PRESETn) begin
                 4'd1: reg_SPICR2    <= PWDATA;
                 4'd2: reg_SPIBR     <= PWDATA;
                 4'd5: begin     // SPIDR can be written only when SPTEF is 1.
-                    if (reg_SPISR[5]) begin
-                        reg_SPIDR_TX        <= PWDATA;
-                        reg_SPIDR_TX_valid  <= 1'b1;
+                    if (SPTEF) begin
+                        reg_SPIDR_TX    <= PWDATA;
+                        SPIDR_TX_valid  <= 1'b1;
                     end
                 end
                 default: ;
             endcase
         end
 
-        if (fsm_MODF_set) begin
+        if (MODF_set) begin
             reg_SPICR1[4]   <= 1'b0;  // change to slave
         end 
     end
@@ -72,9 +85,9 @@ end
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         reg_SPIDR_RX <= 8'h00;
-    end else if (fsm_SPIF_set)begin
-        if (!reg_SPISR[7])      // Copy data from shifter only when previous data was read (SPIF = 0)
-            reg_SPIDR_RX <= fsm_RX_data;
+    end else if (SPIF_set)begin
+        if (!SPIF)      // Copy data from shifter only when previous data was read (SPIF = 0)
+            reg_SPIDR_RX <= RX_data;
     end
 end
 // Output Data
@@ -105,11 +118,11 @@ always @(posedge PCLK or negedge PRESETn) begin
     end else begin
         // Read SPISR
         if(APB_read_en && (PADDR == 4'd3)) begin
-            if (reg_SPISR[7])
+            if (SPIF)
                 SPIF_read   <= 1'b1;
-            if (reg_SPISR[5])
+            if (SPTEF)
                 SPTEF_read  <= 1'b1;
-            if (reg_SPISR[4])
+            if (MODF)
                 MODF_read   <= 1'b1;
         end else begin
             // Clear flags if having read/written SPIDR/SPICR1
@@ -128,19 +141,19 @@ always @(posedge PCLK or negedge PRESETn) begin
         reg_SPISR <= 8'h20;
     end else begin
         // SPIF
-        if (fsm_SPIF_set) begin
+        if (SPIF_set) begin
             reg_SPISR[7]    <= 1'b1;
         end else if (APB_read_en && (PADDR == 4'd5) && SPIF_read) begin
             reg_SPISR[7]    <= 1'b0;
         end
         // SPTEF
-        if (fsm_SPTEF_set) begin
+        if (SPTEF_set) begin
             reg_SPISR[5]    <= 1'b1;
         end else if (APB_write_en && (PADDR == 4'd5) && SPTEF_read) begin
             reg_SPISR[5]    <= 1'b0;
         end
         // MODF
-        if (fsm_MODF_set) begin
+        if (MODF_set) begin
             reg_SPISR[4]    <= 1'b1;
         end else if (APB_write_en && (PADDR == 4'd0) && MODF_read) begin
             reg_SPISR[4]    <= 1'b0;
