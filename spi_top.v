@@ -67,6 +67,7 @@ wire        master_SSN_out;
 // Slave
 // Clock
 wire        ssn_sync;
+wire        ssn_falling;
 wire        slave_sck_rise;
 wire        slave_sck_fall;
 // Signals
@@ -209,6 +210,7 @@ spi_cdc_sync u_spi_cdc_sync (
     .ext_ssn        (ssn_pad_i),
 
     .ssn_sync       (ssn_sync),
+    .ssn_falling    (ssn_falling),
     .slave_sck_rise (slave_sck_rise),
     .slave_sck_fall (slave_sck_fall)
 );
@@ -220,6 +222,7 @@ spi_slave u_spi_slave (
     .slave_en           (slave_en),
 
     .ssn_sync           (ssn_sync),
+    .ssn_falling        (ssn_falling),
     .slave_sck_rise     (slave_sck_rise),
     .slave_sck_fall     (slave_sck_fall),
 

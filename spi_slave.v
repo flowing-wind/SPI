@@ -8,6 +8,7 @@ module spi_slave (
 
     // Synchronous External Signals
     input  wire        ssn_sync,
+    input  wire        ssn_falling,
     input  wire        slave_sck_rise,
     input  wire        slave_sck_fall,
 
@@ -31,16 +32,6 @@ module spi_slave (
 wire sample_pulse, shift_pulse;
 assign sample_pulse = (CPOL ^ CPHA) ? slave_sck_fall : slave_sck_rise;
 assign shift_pulse  = (CPOL ^ CPHA) ? slave_sck_rise : slave_sck_fall;
-
-// Detect SSN falling edge
-reg ssn_sync_r;
-always @(posedge PCLK or negedge PRESETn) begin
-    if (!PRESETn)
-        ssn_sync_r <= 1'b1;
-    else
-        ssn_sync_r <= ssn_sync;
-end
-wire ssn_falling = (ssn_sync_r == 1'b1) && (ssn_sync == 1'b0);
 
 // Transfer
 reg [3:0] bit_cnt;
