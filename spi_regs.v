@@ -93,7 +93,7 @@ end
 // Receive RX data first.
 reg rx_pending;
 always @(posedge PCLK or negedge PRESETn) begin
-    if (!PRESETn) begin
+    if (!PRESETn || !SPE) begin
         reg_SPIDR_RX <= 8'h00;
         rx_pending   <= 1'b0;
     end else begin
@@ -130,7 +130,7 @@ end
 
 // SPISR Clear Flag PRE
 always @(posedge PCLK or negedge PRESETn) begin
-    if (!PRESETn) begin
+    if (!PRESETn || !SPE) begin
         SPIF_read   <= 1'b0;
         SPTEF_read  <= 1'b0;
         MODF_read   <= 1'b0;
@@ -156,7 +156,7 @@ always @(posedge PCLK or negedge PRESETn) begin
 end
 // Set SPISR Next
 always @(posedge PCLK or negedge PRESETn) begin
-    if (!PRESETn) begin
+    if (!PRESETn || !SPE) begin
         reg_SPISR <= 8'h20;
     end else begin
         // SPIF
@@ -170,10 +170,11 @@ always @(posedge PCLK or negedge PRESETn) begin
             end
         end
         // SPTEF
-        if (SPTEF_set) begin
-            reg_SPISR[5]    <= 1'b1;
-        end else if (APB_write_en && (PADDR == 4'd5) && SPTEF_read) begin
+        // APB write has higher priority
+        if (APB_write_en && (PADDR == 4'd5) && SPTEF_read) begin
             reg_SPISR[5]    <= 1'b0;
+        end else if (SPTEF_set) begin
+            reg_SPISR[5]    <= 1'b1;
         end
         // MODF
         if (MODF_set) begin

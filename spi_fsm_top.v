@@ -64,7 +64,10 @@ always @(posedge PCLK or negedge PRESETn) begin
             SLV_RUN: begin
                 master_en <= 1'b0;
                 slave_en  <= 1'b1;
-                // cannot return to INIT_IDLE except SPE and PRESETn
+                // cannot return to INIT_IDLE except SPE and PRESETn and MSTR
+                if (reg_SPICR2[4] != reg_SPICR2_r[4]) begin
+                    state_top   <= INIT_IDLE;
+                end
             end
 
             default: state_top <= INIT_IDLE;

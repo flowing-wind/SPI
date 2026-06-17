@@ -109,7 +109,7 @@ assign miso_pad_oe = SPE & ((~MSTR & ~ssn_sync) ? (SPC0 ? BIDIROE : 1'b1) : 1'b0
 assign miso_pad_o  = slave_MISO_out;
 
 // SSN
-assign ssn_pad_oe = SPE & (MSTR & MODFEN & SSOE) & ~MODF_flag;
+assign ssn_pad_oe = SPE & (MSTR & MODFEN & SSOE);
 assign ssn_pad_o  = master_SSN_out;
 
 // Reroute MIMO/SISO in bidirectional mode

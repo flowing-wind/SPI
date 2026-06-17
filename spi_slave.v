@@ -51,9 +51,9 @@ always @(posedge PCLK or negedge PRESETn) begin
         MISO_out     <= 1'b0;
     end else if (!slave_en || ssn_sync) begin
         SPIF_set     <= 1'b0;
+        SPTEF_set    <= 1'b0;
         bit_cnt      <= 3'd0;
         shifter      <= 8'h00;
-        tx_pending   <= 1'b0;
         spif_pending <= 1'b0;
         MISO_out     <= 1'b0;
     end else begin
@@ -80,12 +80,6 @@ always @(posedge PCLK or negedge PRESETn) begin
                 SPTEF_set    <= 1'b1;
                 spif_pending <= 1'b0;
             end
-            // CPHA = 1, back to back transfer, receive the next tx_data
-            if (CPHA == 1'b1 && bit_cnt == 3'd0 && tx_pending) begin
-                MISO_out     <= LSBFE ? SPIDR_TX_buffer[0] : SPIDR_TX_buffer[7];
-                shifter      <= SPIDR_TX_buffer;
-                tx_pending   <= 1'b0;
-            end
         end
 
         if (sample_pulse) begin
@@ -98,6 +92,10 @@ always @(posedge PCLK or negedge PRESETn) begin
                 if (CPHA == 1'b1) begin
                     SPIF_set     <= 1'b1;
                     SPTEF_set    <= 1'b1;
+                    if (tx_pending) begin
+                        shifter     <= SPIDR_TX_buffer;
+                        tx_pending  <= 1'b0;
+                    end
                 end else begin
                     // For CPHA = 0  and SSN still low (next cycle), tx send last data
                     spif_pending <= 1'b1;   // set SPIF and SPTEF next edge
