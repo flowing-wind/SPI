@@ -44,8 +44,8 @@ localparam MSTR_IDLE        = 2'b00;
 localparam MSTR_Shift_Data  = 2'b01;
 localparam MSTR_TAIL_1      = 2'b10;    // t_T
 localparam MSTR_TAIL_2      = 2'b11;    // t_I
-reg [3:0] bit_cnt;
-reg [7:0] rx_shifter, tx_shifter;
+reg [2:0] bit_cnt;
+reg [7:0] shifter;
 reg       tx_pending;
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
@@ -54,9 +54,8 @@ always @(posedge PCLK or negedge PRESETn) begin
         SPIF_set     <= 1'b0;
         SPTEF_set    <= 1'b1;
         RX_data      <= 8'h00;
-        bit_cnt      <= 4'd0;
-        rx_shifter   <= 8'h00;
-        tx_shifter   <= 8'h00;
+        bit_cnt      <= 3'd0;
+        shifter      <= 8'h00;
         tx_pending   <= 1'b0;
         MOSI_out     <= 1'b0;
         SSN          <= 1'b1;
@@ -66,9 +65,8 @@ always @(posedge PCLK or negedge PRESETn) begin
         sck_en       <= 1'b0;
         SPIF_set     <= 1'b0;
         SPTEF_set    <= 1'b0;
-        bit_cnt      <= 4'd0;
-        rx_shifter   <= 8'h00;
-        tx_shifter   <= 8'h00;
+        bit_cnt      <= 3'd0;
+        shifter      <= 8'h00;
         tx_pending   <= 1'b0;
         MOSI_out     <= 1'b0;
         SSN          <= 1'b1;
@@ -80,8 +78,7 @@ always @(posedge PCLK or negedge PRESETn) begin
         SPTEF_set    <= SPTEF_set;
         RX_data      <= RX_data;
         bit_cnt      <= bit_cnt;
-        rx_shifter   <= rx_shifter;
-        tx_shifter   <= tx_shifter;
+        shifter      <= shifter;
         tx_pending   <= tx_pending;
         MOSI_out     <= MOSI_out;
         SSN          <= SSN;
@@ -98,61 +95,56 @@ always @(posedge PCLK or negedge PRESETn) begin
         case (state_master)
             MSTR_IDLE: begin
                 SPIF_set     <= 1'b0;
-                bit_cnt      <= 4'd0;
+                bit_cnt      <= 3'd0;
                 if (tx_pending || SPIDR_TX_valid) begin
                     baud_en         <= 1'b1;
                     sck_en          <= 1'b1;
                     SPTEF_set       <= 1'b1;
                     SSN             <= 1'b0;
-                    tx_shifter      <= SPIDR_TX_buffer;
+                    shifter         <= SPIDR_TX_buffer;
                     tx_pending      <= 1'b0;    // clear pending flag
                     state_master    <= MSTR_Shift_Data;
-                    if (CPHA == 1'b0) begin     // Give data before the first pulse, shift tx_shifter simultaneously
-                        if (LSBFE) begin
-                            MOSI_out <= SPIDR_TX_buffer[0];
-                            tx_shifter <= {1'b0, SPIDR_TX_buffer[7:1]};
-                        end else begin
-                            MOSI_out <= SPIDR_TX_buffer[7];
-                            tx_shifter <= {SPIDR_TX_buffer[6:0], 1'b0};
-                        end
+                    if (CPHA == 1'b0) begin     // Give data before the first pulse
+                        MOSI_out    <= LSBFE ? SPIDR_TX_buffer[0] : SPIDR_TX_buffer[7];
                     end
                 end
             end
 
             MSTR_Shift_Data: begin
-                if (sample_pulse || shift_pulse) begin
-
-                    if (sample_pulse) begin
-                        if (LSBFE) begin
-                            rx_shifter <= {MISO_in, rx_shifter[7:1]};
-                        end else begin
-                            rx_shifter <= {rx_shifter[6:0], MISO_in};
-                        end
-                    end else if (shift_pulse) begin
-                        if (LSBFE) begin
-                            MOSI_out   <= tx_shifter[0];
-                            tx_shifter <= {1'b0, tx_shifter[7:1]};
-                        end else begin
-                            MOSI_out   <= tx_shifter[7];
-                            tx_shifter <= {tx_shifter[6:0], 1'b0};
-                        end
+                if (shift_pulse) begin
+                    // Detect if it is the last edge for CPHA = 0
+                    if (CPHA == 1'b0 && bit_cnt == 3'd0) begin
+                        baud_en      <= 1'b1;   // Still counting
+                        sck_en       <= 1'b0;   // But stop sck output
+                        state_master <= MSTR_TAIL_1;
+                    end else begin
+                        MOSI_out     <= LSBFE ? shifter[0] : shifter[7];
                     end
+                end
 
-                    if (bit_cnt == 4'd15) begin
+                if (sample_pulse) begin
+                    shifter  <= LSBFE ? {MISO_in, shifter[7:1]} : {shifter[6:0], MISO_in};
+
+                    if (bit_cnt == 3'd7) begin
                         // Back to Back transfers, works when CPHA = 1
-                        if ((CPHA == 1'b1) && (tx_pending || SPIDR_TX_valid)) begin
-                            bit_cnt      <= 4'd0;
-                            SPIF_set     <= 1'b1;
-                            SPTEF_set    <= 1'b1;
-                            tx_pending   <= 1'b0;
-                            tx_shifter   <= SPIDR_TX_buffer;
-                            state_master <= MSTR_Shift_Data;
-                            // copy to rx_buffer
-                            RX_data      <= LSBFE ? {MISO_in, rx_shifter[7:1]} : {rx_shifter[6:0], MISO_in};
+                        if (CPHA == 1'b1) begin
+                            if (tx_pending || SPIDR_TX_valid) begin
+                                bit_cnt      <= 3'd0;
+                                SPIF_set     <= 1'b1;
+                                SPTEF_set    <= 1'b1;
+                                tx_pending   <= 1'b0;
+                                shifter      <= SPIDR_TX_buffer;
+                                state_master <= MSTR_Shift_Data;
+                                // copy to rx_buffer
+                                RX_data      <= LSBFE ? {MISO_in, shifter[7:1]} : {shifter[6:0], MISO_in};
+                            end else begin
+                                baud_en      <= 1'b1;   // Still counting
+                                sck_en       <= 1'b0;   // But stop sck output
+                                state_master <= MSTR_TAIL_1;
+                            end
                         end else begin
-                            baud_en   <= 1'b1;  // Still counting
-                            sck_en    <= 1'b0;  // But stop sck output
-                            state_master <= MSTR_TAIL_1;
+                            // For CPHA = 0, it needs the last shift edge
+                            bit_cnt <= 3'd0;
                         end
                     end else begin
                         bit_cnt <= bit_cnt + 1'b1;
@@ -165,7 +157,7 @@ always @(posedge PCLK or negedge PRESETn) begin
                 if (sck_rise_pulse || sck_fall_pulse) begin
                     SSN          <= 1'b1;
                     SPIF_set     <= 1'b1;
-                    RX_data      <= rx_shifter;
+                    RX_data      <= shifter;
                     state_master <= MSTR_TAIL_2;
                 end
             end

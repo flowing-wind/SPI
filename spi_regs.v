@@ -24,6 +24,9 @@ module spi_regs (
     output reg  [7:0]  reg_SPIDR_TX,
     output reg         SPIDR_TX_valid,
 
+    // MODF Interface
+    output wire        MODF_flag,
+
     // Interrupt Request
     output wire        spi_irq
 );
@@ -40,7 +43,8 @@ wire SPIF    = reg_SPISR[7];
 wire SPTEF   = reg_SPISR[5];
 wire MODF    = reg_SPISR[4];
 
-assign spi_irq = SPE & ((SPIE & (SPIF | MODF)) | (SPTIE & SPTEF));
+assign MODF_flag = MODF;
+assign spi_irq   = SPE & ((SPIE & (SPIF | MODF)) | (SPTIE & SPTEF));
 
 // To clear flags, read SPISR first.
 reg     SPIF_read;
@@ -87,12 +91,26 @@ end
 
 // APB Read Data
 // Receive RX data first.
+reg rx_pending;
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         reg_SPIDR_RX <= 8'h00;
-    end else if (SPIF_set)begin
-        if (!SPIF)      // Copy data from shifter only when previous data was read (SPIF = 0)
-            reg_SPIDR_RX <= RX_data;
+        rx_pending   <= 1'b0;
+    end else begin
+        if (SPIF_set)begin
+            if (!SPIF) begin    // Copy data from shifter only when previous data was read (SPIF = 0)
+                reg_SPIDR_RX <= RX_data;
+            end else begin      // Otherwise the second received data should be pending
+                rx_pending   <= 1'b1;
+            end
+        end
+        // If CPU is reading RX, push the second rx_data into SPIDR_RX
+        else if(APB_read_en && (PADDR == 4'd5) && SPIF_read) begin
+            if (rx_pending) begin
+                reg_SPIDR_RX <= RX_data;
+                rx_pending   <= 1'b0;
+            end
+        end
     end
 end
 // Output Data
@@ -145,7 +163,11 @@ always @(posedge PCLK or negedge PRESETn) begin
         if (SPIF_set) begin
             reg_SPISR[7]    <= 1'b1;
         end else if (APB_read_en && (PADDR == 4'd5) && SPIF_read) begin
-            reg_SPISR[7]    <= 1'b0;
+            if (rx_pending) begin   // The second data is pending
+                reg_SPISR[7]    <= 1'b1;
+            end else begin
+                reg_SPISR[7]    <= 1'b0;
+            end
         end
         // SPTEF
         if (SPTEF_set) begin

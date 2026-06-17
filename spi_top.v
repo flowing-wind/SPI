@@ -45,6 +45,7 @@ wire        SPIDR_TX_valid;
 wire        SPIF_set;
 wire        SPTEF_set;
 wire        MODF_set;
+wire        MODF_flag;
 
 // MSTR/SLV Ctrl
 wire        master_en;
@@ -58,23 +59,27 @@ wire        sck_rise_pulse;
 wire        sck_fall_pulse;
 wire        sck_out;
 // Signals
+wire        miso_sync;
 wire [7:0]  master_RX_data;
 wire        master_SPIF_set;
 wire        master_SPTEF_set;
 wire        master_MOSI_out;
+wire        master_MIMO_in;
 wire        master_SSN_out;
 
 // Slave
 // Clock
-wire        ssn_sync;
-wire        ssn_falling;
 wire        slave_sck_rise;
 wire        slave_sck_fall;
 // Signals
+wire        ssn_sync;
+wire        ssn_falling;
+wire        mosi_sync;
 wire [7:0]  slave_RX_data;
 wire        slave_SPIF_set;
 wire        slave_SPTEF_set;
 wire        slave_MISO_out;
+wire        slave_SISO_in;
 
 // Configurations
 wire SPE     = reg_SPICR1[6];
@@ -91,30 +96,30 @@ wire SPC0    = reg_SPICR2[0];
 
 // IO Muxing
 // SCK
-assign sck_pad_oe = SPE & MSTR;
+assign sck_pad_oe = SPE & MSTR & ~MODF_flag;
 assign sck_pad_o  = sck_out;
 
 // MOSI
 // SPC = 1  -->  check BIDIROE to determine transfer direction
-assign mosi_pad_oe = SPE & (MSTR ? (SPC0 ? BIDIROE : 1'b1): 1'b0);
+assign mosi_pad_oe = SPE & (MSTR ? (SPC0 ? BIDIROE : 1'b1): 1'b0) & ~MODF_flag;
 assign mosi_pad_o  = master_MOSI_out;
 
 // MISO
-assign miso_pad_oe = SPE & ((~MSTR & ~ssn_pad_i) ? (SPC0 ? BIDIROE : 1'b1) : 1'b0);
+assign miso_pad_oe = SPE & ((~MSTR & ~ssn_sync) ? (SPC0 ? BIDIROE : 1'b1) : 1'b0) & ~MODF_flag;
 assign miso_pad_o  = slave_MISO_out;
 
 // SSN
-assign ssn_pad_oe = SPE & (MSTR & MODFEN & SSOE);
+assign ssn_pad_oe = SPE & (MSTR & MODFEN & SSOE) & ~MODF_flag;
 assign ssn_pad_o  = master_SSN_out;
 
 // Reroute MIMO/SISO in bidirectional mode
 // In Master mode, route MISO to MIMO(MOSI)
-assign master_MIMO_in = (MSTR & SPC0) ? mosi_pad_i : miso_pad_i;
+assign master_MIMO_in = (MSTR & SPC0) ? mosi_sync : miso_sync;
 // In Slave mode, route MOSI to SISO(MISO)
-assign slave_SISO_in  = (~MSTR & SPC0) ? miso_pad_i : mosi_pad_i;
+assign slave_SISO_in  = (~MSTR & SPC0) ? miso_sync : mosi_sync;
 
 // Detect Mode Fault
-assign  MODF_set = MSTR & MODFEN & (~SSOE) & (~ssn_pad_i);
+assign  MODF_set = MSTR & MODFEN & (~SSOE) & (~ssn_sync);
 
 // Int Flag Muxing
 assign SPIF_set  = MSTR ? master_SPIF_set   : slave_SPIF_set;
@@ -143,6 +148,8 @@ spi_regs u_spi_regs (
     .RX_data        (RX_data),
     .reg_SPIDR_TX   (reg_SPIDR_TX),
     .SPIDR_TX_valid (SPIDR_TX_valid),
+
+    .MODF_flag      (MODF_flag),
     .spi_irq        (spi_irq)
 );
 
@@ -206,11 +213,15 @@ spi_cdc_sync u_spi_cdc_sync (
     .PCLK           (PCLK),
     .PRESETn        (PRESETn),
 
-    .ext_sck        (sck_pad_i),
-    .ext_ssn        (ssn_pad_i),
+    .sck_pad_i      (sck_pad_i),
+    .ssn_pad_i      (ssn_pad_i),
+    .mosi_pad_i     (mosi_pad_i),
+    .miso_pad_i     (miso_pad_i),
 
     .ssn_sync       (ssn_sync),
     .ssn_falling    (ssn_falling),
+    .mosi_sync      (mosi_sync),
+    .miso_sync      (miso_sync),
     .slave_sck_rise (slave_sck_rise),
     .slave_sck_fall (slave_sck_fall)
 );
@@ -229,6 +240,7 @@ spi_slave u_spi_slave (
     .CPOL               (CPOL),
     .CPHA               (CPHA),
     .LSBFE              (LSBFE),
+    .SPIDR_TX_valid     (SPIDR_TX_valid),
     .SPIDR_TX_buffer    (reg_SPIDR_TX),
 
     .SPIF_set           (slave_SPIF_set),
@@ -238,6 +250,5 @@ spi_slave u_spi_slave (
     .MOSI_in            (slave_SISO_in),    // // Signal after rerouting
     .MISO_out           (slave_MISO_out)
 );
-
 
 endmodule //spi_top
