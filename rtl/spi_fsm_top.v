@@ -7,6 +7,7 @@ module spi_fsm_top (
     input  wire [7:0]  reg_SPICR1,
     input  wire [7:0]  reg_SPICR2,
     input  wire [7:0]  reg_SPIBR,
+    input  wire [1:0]  reg_SPIFW,
 
     // Output
     output reg         master_en,
@@ -15,29 +16,33 @@ module spi_fsm_top (
 
 // Detect changes in some signals
 reg [7:0] reg_SPICR1_r, reg_SPICR2_r, reg_SPIBR_r;
+reg [1:0] reg_SPIFW_r;
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
         reg_SPICR1_r    <= 8'h04;
         reg_SPICR2_r    <= 8'h00;
         reg_SPIBR_r     <= 8'h30;
+        reg_SPIFW_r     <= 2'b00;
     end else begin
         reg_SPICR1_r    <= reg_SPICR1;
         reg_SPICR2_r    <= reg_SPICR2;
         reg_SPIBR_r     <= reg_SPIBR;
+        reg_SPIFW_r     <= reg_SPIFW;
     end
 end
 
-wire cfg_changed = (reg_SPICR1[4:0] != reg_SPICR1_r[4:0]) || 
+wire cfg_changed = (reg_SPICR1[4:0] != reg_SPICR1_r[4:0]) ||
                    (reg_SPICR2[4] != reg_SPICR2_r[4]) || ((reg_SPICR2[3] != reg_SPICR2_r[3]) && (reg_SPICR2[0] == 1)) || (reg_SPICR2[0] != reg_SPICR2_r[0]) ||
-                   (reg_SPIBR [6:4] != reg_SPIBR_r [6:4]) || (reg_SPIBR[2:0] != reg_SPIBR_r[2:0]);
+                   (reg_SPIBR [6:4] != reg_SPIBR_r [6:4]) || (reg_SPIBR[2:0] != reg_SPIBR_r[2:0]) ||
+                   (reg_SPIFW != reg_SPIFW_r);
 
 // Top FSM
 reg [1:0] state_top;
 localparam INIT_IDLE    = 2'b00;
 localparam MSTR_RUN     = 2'b01;
 localparam SLV_RUN      = 2'b10;
-assign SPE  = reg_SPICR1[6];
-assign MSTR = reg_SPICR1[4];
+wire SPE  = reg_SPICR1[6];
+wire MSTR = reg_SPICR1[4];
 always @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn || SPE == 1'b0) begin
         master_en <= 1'b0;

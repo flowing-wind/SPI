@@ -1,2 +1,3 @@
-xvlog.pb
-xsim.dir/
+*.vvp
+*.vcd
+*.log

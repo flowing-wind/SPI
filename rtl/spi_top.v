@@ -3,12 +3,12 @@ module spi_top (
     input  wire        PCLK,
     input  wire        PRESETn,
 
-    input  wire [3:0]  PADDR,
+    input  wire [4:0]  PADDR,
     input  wire        PSEL,
     input  wire        PENABLE,
     input  wire        PWRITE,
-    input  wire [7:0]  PWDATA,
-    output reg  [7:0]  PRDATA,
+    input  wire [31:0] PWDATA,
+    output wire [31:0] PRDATA,
     output wire        PREADY,
     // Interrupt Signal
     output wire        spi_irq,
@@ -37,8 +37,9 @@ module spi_top (
 wire [7:0]  reg_SPICR1;
 wire [7:0]  reg_SPICR2;
 wire [7:0]  reg_SPIBR;
-wire [7:0]  reg_SPIDR_TX;
-wire [7:0]  RX_data;
+wire [1:0]  reg_SPIFW;
+wire [31:0] reg_SPIDR_TX;
+wire [31:0] RX_data;
 wire        SPIDR_TX_valid;
 
 // Reg Ctrl
@@ -60,7 +61,7 @@ wire        sck_fall_pulse;
 wire        sck_out;
 // Signals
 wire        miso_sync;
-wire [7:0]  master_RX_data;
+wire [31:0] master_RX_data;
 wire        master_SPIF_set;
 wire        master_SPTEF_set;
 wire        master_MOSI_out;
@@ -75,7 +76,7 @@ wire        slave_sck_fall;
 wire        ssn_sync;
 wire        ssn_falling;
 wire        mosi_sync;
-wire [7:0]  slave_RX_data;
+wire [31:0] slave_RX_data;
 wire        slave_SPIF_set;
 wire        slave_SPTEF_set;
 wire        slave_MISO_out;
@@ -141,6 +142,7 @@ spi_regs u_spi_regs (
     .reg_SPICR1     (reg_SPICR1),
     .reg_SPICR2     (reg_SPICR2),
     .reg_SPIBR      (reg_SPIBR),
+    .reg_SPIFW      (reg_SPIFW),
 
     .SPIF_set       (SPIF_set),
     .SPTEF_set      (SPTEF_set),
@@ -160,6 +162,7 @@ spi_fsm_top u_spi_fsm_top (
     .reg_SPICR1 (reg_SPICR1),
     .reg_SPICR2 (reg_SPICR2),
     .reg_SPIBR  (reg_SPIBR),
+    .reg_SPIFW  (reg_SPIFW),
 
     .master_en  (master_en),
     .slave_en   (slave_en)
@@ -194,6 +197,7 @@ spi_master u_spi_master (
     .CPOL               (CPOL),
     .CPHA               (CPHA),
     .LSBFE              (LSBFE),
+    .FW                 (reg_SPIFW),
     .SPIDR_TX_valid     (SPIDR_TX_valid),
     .SPIDR_TX_buffer    (reg_SPIDR_TX),
 
@@ -240,6 +244,7 @@ spi_slave u_spi_slave (
     .CPOL               (CPOL),
     .CPHA               (CPHA),
     .LSBFE              (LSBFE),
+    .FW                 (reg_SPIFW),
     .SPIDR_TX_valid     (SPIDR_TX_valid),
     .SPIDR_TX_buffer    (reg_SPIDR_TX),
 
@@ -247,7 +252,7 @@ spi_slave u_spi_slave (
     .SPTEF_set          (slave_SPTEF_set),
     .RX_data            (slave_RX_data),
 
-    .MOSI_in            (slave_SISO_in),    // // Signal after rerouting
+    .MOSI_in            (slave_SISO_in),    // Signal after rerouting
     .MISO_out           (slave_MISO_out)
 );
 

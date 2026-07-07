@@ -41,6 +41,8 @@ always @(*) begin
 end
 
 // Clock Div
+// sck_state tracks the physical SCK level: it idles at CPOL so the first
+// generated edge matches the pad (falling first when CPOL=1).
 reg [11:0] sck_cnt;
 reg        sck_state;
 always @(posedge PCLK or negedge PRESETn) begin
@@ -67,7 +69,7 @@ always @(posedge PCLK or negedge PRESETn) begin
             end
         end else begin
             sck_cnt     <= 12'd0;
-            sck_state   <= 1'b0;
+            sck_state   <= CPOL;
         end
     end
 end
